@@ -22,8 +22,8 @@ defmodule TodoList do
   @doc """
   add a new entry to the todo list
   """
-  def add_entry(todo_list, data, title) do
-    MultiDict.add(todo_list,data, title)
+  def add_entry(todo_list, entry) do
+    MultiDict.add(todo_list, entry.date, entry)
   end
 
   @doc """

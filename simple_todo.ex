@@ -2,8 +2,16 @@ defmodule TodoList do
 
   defstruct auto_id: 1, entries: HashDict.new
 
-  def new(), do: %TodoList{}
 
+  def new(entries \\ []) do
+    Enum.reduce(
+      entries,
+      %TodoList,
+      #fn(entry, todo_list_acc) -> add_entry(todo_list_acc, entry) end
+      &add_entry(&2, &1) # capture version is definitely shorter, but it’s
+                         # arguably more cryptic.
+    )
+  end
   #----------------------------------------------------------------------
   #                            ADD ENTRY
   #----------------------------------------------------------------------

@@ -4,6 +4,10 @@ defmodule TodoList do
 
   def new(), do: %TodoList{}
 
+  #----------------------------------------------------------------------
+  #                            ADD ENTRY
+  #----------------------------------------------------------------------
+
   def add_entry(
         %TodoList{entries: entries, auto_id: auto_id} = todo_list, entry
       ) do
@@ -13,11 +17,19 @@ defmodule TodoList do
     %TodoList{todo_list | entries: new_entries, auto_id: auto_id + 1}
   end
 
+  #----------------------------------------------------------------------
+  #                         GET ENTRIES
+  #----------------------------------------------------------------------
+
   def entries(%TodoList{entries: entries}, date) do
     entries
     |> Stream.filter(fn({_, entry}) -> entry.date == date end)
     |> Enum.map(fn({_, entry}) -> entry end) # only return values
   end
+
+  #----------------------------------------------------------------------
+  #                         UPDATE AN ENTRY
+  #----------------------------------------------------------------------
 
   def update_entry(todo_list, %{} = new_entry) do
     # we have provided an alternative interface, The updater lambda
@@ -38,6 +50,16 @@ defmodule TodoList do
         new_entries = HashDict.put(entries, new_entry.id, new_entry)
         %TodoList{todo_list | entries: new_entries}
     end
+
+  end
+
+  #----------------------------------------------------------------------
+  #                         DELETE AN ENTRY
+  #----------------------------------------------------------------------
+
+  def delete_entry(%TodoList{entries: entries} = todoList, entry_id) do
+
+    %TodoList{todoList | entries: HashDict.delete(entries, entry_id)}
 
   end
 

@@ -2,7 +2,7 @@ defmodule TodoList do
 
   defstruct auto_id: 1, entries: HashDict.new
 
-  def new, do: %TodoList{}
+  def new(), do: %TodoList{}
 
   def add_entry(
         %TodoList{entries: entries, auto_id: auto_id} = todo_list, entry
@@ -19,16 +19,18 @@ defmodule TodoList do
     |> Enum.map(fn({_, entry}) -> entry end) # only return values
   end
 
+  def update_entry(
+        %TodoList{entries: entries} = todo_list, entry_id, updater_fun
+      ) do
+    case entries[entry_id] do
+      nil -> todo_list
+      old_entry ->
+        new_entry = updater_fun.(old_entry)
+        new_entries = HashDict.put(entries, new_entry.id, new_entry)
+        %TodoList{todo_list | entries: new_entries}
+    end
+
+  end
+
 end
 
-# todo_list = TodoList.new |>
-#   TodoList.add_entry(
-#     %{date: {2013, 12, 19}, title: "Dentist"}
-#   ) |>
-#   TodoList.add_entry(
-#     %{date: {2013, 12, 20}, title: "Shopping"}
-#   ) |>
-#   TodoList.add_entry(
-#     %{date: {2013, 12, 19}, title: "Movies"}
-
-# TodoList.entries(todo_list, {2013, 12, 19})

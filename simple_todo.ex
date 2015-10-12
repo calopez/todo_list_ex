@@ -19,21 +19,21 @@ defmodule TodoList do
     |> Enum.map(fn({_, entry}) -> entry end) # only return values
   end
 
-  def update_entry(
+  def update_entry(todo_list, %{} = new_entry) do
+    # we have provided an alternative interface, The updater lambda
+    # ignores the old value and returns the new entry.
+    update_entry(todo_list, new_entry.id, fn(_) -> new_entry end)
+  end
+
+  defp update_entry(
         %TodoList{entries: entries} = todo_list, entry_id, updater_fun
       ) do
     case entries[entry_id] do
       nil -> todo_list
       old_entry ->
-        # this pattern match ensure the result of that fun is a map
-        # If that fails, an error will be raised. Otherwise, you’ll
-        # take the entire result into the new_entry variable.
-        new_entry = %{} = updater_fun.(old_entry)
-
-        # we can go a step futher and assert that the id value of the
-        # entry has not been changed
+        # assert that the id value of the entry has not been changed
         old_entry_id = old_entry.id
-        new_entry = %{id: ^old_entry_id} = updater_fun.(old_entry)
+        new_entry = %{id: ^old_entry_id} = updater_fun.()
 
         new_entries = HashDict.put(entries, new_entry.id, new_entry)
         %TodoList{todo_list | entries: new_entries}

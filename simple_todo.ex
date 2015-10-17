@@ -1,3 +1,60 @@
+defmodule TodoServer do
+ @moduledoc "
+ Study notes.
+ When implementing a server process, it usually makes sense to put all of
+ its code in a single module. The functions of this module generally fall
+ in two categories: interface and implementation.
+
+ Interface functions are public and are executed in the caller process.
+ They hide the details of process creation and the communication protocol.
+
+ Implementation functions are usually private and run in the server process.
+"
+
+  def start do
+    spawn(fn -> loop(TodoList.new) end)
+  end
+
+  defp loop(todo_list) do
+    new_todo_list = receive do
+      message -> process_message(todo_list, message)
+    end
+    loop(new_todo_list)
+
+  end # end loop
+
+  # ------------------------------------------------------------
+  #                       Interface
+  # ------------------------------------------------------------
+
+  def add_entry(todo_server, new_entry) do
+    send(todo_server, {:add_entry, new_entry})
+  end
+
+  def entries(todo_server, date) do
+    send(todo_server, {:entries, self, date})
+
+    receive do
+      {:todo_entries, entries} -> entries
+                    after 5000 -> {:error, :timeout}
+    end
+  end
+
+  # ------------------------------------------------------------
+  #                         Implementation
+  # ------------------------------------------------------------
+
+
+  defp process_message(todo_list, {:add_entry, new_entry}) do
+    TodoList.add_entry(todo_list, new_entry)
+  end
+
+  defp process_message(todo_list, {:entries, caller, date}) do
+    send(caller, {:todo_entries, TodoList.entries(todo_list, date)})
+    todo_list
+  end
+end
+
 defmodule TodoList do
 
   defstruct auto_id: 1, entries: HashDict.new

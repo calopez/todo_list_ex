@@ -12,7 +12,9 @@ defmodule TodoServer do
 "
 
   def start do
-    spawn(fn -> loop(TodoList.new) end)
+    pid = spawn(fn -> loop(TodoList.new) end)
+    # register the TodoList server under a local alias
+    Process.register(pid, :todo_server)
   end
 
   defp loop(todo_list) do
@@ -27,13 +29,15 @@ defmodule TodoServer do
   #                       Interface
   # ------------------------------------------------------------
 
-  def add_entry(todo_server, new_entry) do
-    send(todo_server, {:add_entry, new_entry})
+  def add_entry(new_entry) do
+    send(:todo_server, {:add_entry, new_entry})
   end
 
-  def entries(todo_server, date) do
-    send(todo_server, {:entries, self, date})
+  def entries(date) do
+    # 1. sent the message
+    send(:todo_server, {:entries, self, date})
 
+    # 2. wait the response
     receive do
       {:todo_entries, entries} -> entries
                     after 5000 -> {:error, :timeout}
@@ -54,6 +58,15 @@ defmodule TodoServer do
     todo_list
   end
 end
+
+
+
+# ------------------------------------------------------------
+# ------------------------------------------------------------
+#              TodoList Module (Data Abstraction)
+# ------------------------------------------------------------
+# ------------------------------------------------------------
+
 
 defmodule TodoList do
 

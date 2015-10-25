@@ -6,89 +6,64 @@ defmodule TodoServer do
   in two categories: interface and implementation.
   Interface functions are public and are executed in the caller process.
   They hide the details of process creation and the communication protocol.
-  Implementation functions are usually private and run in the server process. "
+  Implementation functions are usually private and run in the server process.
 
-  def start do
-    ServerProcess.start(__MODULE__)
-  end
+  iex(2)> {:ok, pid} = TodoServer.start_link
+  {:ok, #PID<0.65.0>}
+  iex(3)> TodoServer.add_entry(pid, %{date: {2013, 12, 19}, title: "Dentist"})
+  :ok
+  iex(4)> TodoServer.add_entry(pid, %{date: {2013, 12, 20}, title: "Shopping"})
+  :ok
+  iex(5)> TodoServer.add_entry(pid, %{date: {2013, 12, 19}, title: "Movies"})
+  :ok
+  iex(6)> TodoServer.entries(pid, {2013, 12, 19})
+  [%{date: {2013, 12, 19}, id: 3, title: "Movies"},
+  %{date: {2013, 12, 19}, id: 1, title: "Dentist"}]
+  iex(7)> TodoServer.entries(pid, {2013, 12, 20})
+  [%{date: {2013, 12, 20}, id: 2, title: "Shopping"}] "
+
+
+  use GenServer
 
   # ------------------------------------------------------------
   #                       Interface
   # ------------------------------------------------------------
 
-  def init do
-    TodoList.new
+  def start_link do
+    GenServer.start_link(__MODULE__, nil)
   end
 
-  def add_entry(new_entry) do
-    ServerProcess.cast({:add_entry, new_entry})
+  def add_entry(todo_server, new_entry) do
+    GenServer.cast(todo_server, {:add_entry, new_entry})
   end
 
-  def entries(date) do
-    ServerProcess.call({:entries, date})
+  def entries(todo_server, date) do
+    GenServer.call(todo_server, {:entries, date})
   end
 
 
   # ------------------------------------------------------------
-  #         Implementation (callbacks for ServerProcess)
+  #         Implementation (callbacks for GenServer)
   # ------------------------------------------------------------
 
-  def handle_cast({:add_entry, new_entry}, todo_list) do
-    TodoList.add_entry(todo_list, new_entry)
+  def init(_) do
+    {:ok, TodoList.new}
   end
 
-  def handle_call({:entries, date}, todo_list) do
+  def handle_cast({:add_entry, new_entry}, todo_list) do #(msg, state)
+
+    todo_list = TodoList.add_entry(todo_list, new_entry)
+    {:noreply, todo_list}
+
+  end
+
+  def handle_call({:entries, date},_, todo_list) do #(msg, {from, ref}, state)
     list = TodoList.entries(todo_list, date)
-    {list, todo_list}
+    {:reply, list, todo_list}
+
   end
 
 end
-
-
-defmodule ServerProcess do
-  @moduledoc " Abstraction for the generic server process."
-
-  def start(callback_module) do
-    pid = spawn(fn ->
-      initial_state = callback_module.init
-      loop(callback_module, initial_state)
-    end)
-    Process.register(pid, :todo_server)
-  end
-
-  # function to issue requests to the server process
-  def call(request, timeout \\ 5000) do
-    send(:todo_server, {:call, request, self})
-
-    receive do
-      {:response, response} -> response
-              after timeout -> {:error, :timeout}
-    end
-  end
-
-  def cast(request) do
-    send(:todo_server, {:cast, request})
-  end
-
-  # handling messages in the server process
-  defp loop(callback_module, current_state) do
-    receive do
-      {:call, request, caller} ->
-        {response, new_state} = callback_module.handle_call(request,
-                                                            current_state)
-        send(caller, {:response, response})
-        loop(callback_module, new_state)
-
-      {:cast, request} ->
-        new_state = callback_module.handle_cast(request, current_state)
-        IO.inspect new_state
-        loop(callback_module, new_state)
-    end
-  end
-
-end
-
-
 
 
 # ------------------------------------------------------------

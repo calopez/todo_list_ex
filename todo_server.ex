@@ -1,63 +1,93 @@
 defmodule TodoServer do
- @moduledoc "
- Study notes.
- When implementing a server process, it usually makes sense to put all of
- its code in a single module. The functions of this module generally fall
- in two categories: interface and implementation.
-
- Interface functions are public and are executed in the caller process.
- They hide the details of process creation and the communication protocol.
-
- Implementation functions are usually private and run in the server process.
-"
+  @moduledoc "
+  Study notes.
+  When implementing a server process, it usually makes sense to put all of
+  its code in a single module. The functions of this module generally fall
+  in two categories: interface and implementation.
+  Interface functions are public and are executed in the caller process.
+  They hide the details of process creation and the communication protocol.
+  Implementation functions are usually private and run in the server process. "
 
   def start do
-    pid = spawn(fn -> loop(TodoList.new) end)
-    # register the TodoList server under a local alias
-    Process.register(pid, :todo_server)
+    ServerProcess.start(__MODULE__)
   end
-
-  defp loop(todo_list) do
-    new_todo_list = receive do
-      message -> process_message(todo_list, message)
-    end
-    loop(new_todo_list)
-
-  end # end loop
 
   # ------------------------------------------------------------
   #                       Interface
   # ------------------------------------------------------------
 
+  def init do
+    TodoList.new
+  end
+
   def add_entry(new_entry) do
-    send(:todo_server, {:add_entry, new_entry})
+    ServerProcess.cast({:add_entry, new_entry})
   end
 
   def entries(date) do
-    # 1. sent the message
-    send(:todo_server, {:entries, self, date})
-
-    # 2. wait the response
-    receive do
-      {:todo_entries, entries} -> entries
-                    after 5000 -> {:error, :timeout}
-    end
+    ServerProcess.call({:entries, date})
   end
 
+
   # ------------------------------------------------------------
-  #                         Implementation
+  #         Implementation (callbacks for ServerProcess)
   # ------------------------------------------------------------
 
-
-  defp process_message(todo_list, {:add_entry, new_entry}) do
+  def handle_cast({:add_entry, new_entry}, todo_list) do
     TodoList.add_entry(todo_list, new_entry)
   end
 
-  defp process_message(todo_list, {:entries, caller, date}) do
-    send(caller, {:todo_entries, TodoList.entries(todo_list, date)})
-    todo_list
+  def handle_call({:entries, date}, todo_list) do
+    list = TodoList.entries(todo_list, date)
+    {list, todo_list}
   end
+
 end
+
+
+defmodule ServerProcess do
+  @moduledoc " Abstraction for the generic server process."
+
+  def start(callback_module) do
+    pid = spawn(fn ->
+      initial_state = callback_module.init
+      loop(callback_module, initial_state)
+    end)
+    Process.register(pid, :todo_server)
+  end
+
+  # function to issue requests to the server process
+  def call(request, timeout \\ 5000) do
+    send(:todo_server, {:call, request, self})
+
+    receive do
+      {:response, response} -> response
+              after timeout -> {:error, :timeout}
+    end
+  end
+
+  def cast(request) do
+    send(:todo_server, {:cast, request})
+  end
+
+  # handling messages in the server process
+  defp loop(callback_module, current_state) do
+    receive do
+      {:call, request, caller} ->
+        {response, new_state} = callback_module.handle_call(request,
+                                                            current_state)
+        send(caller, {:response, response})
+        loop(callback_module, new_state)
+
+      {:cast, request} ->
+        new_state = callback_module.handle_cast(request, current_state)
+        IO.inspect new_state
+        loop(callback_module, new_state)
+    end
+  end
+
+end
+
 
 
 

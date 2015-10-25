@@ -1,5 +1,5 @@
 defmodule TodoServer do
-  @moduledoc "
+  @moduledoc """
   Study notes.
   When implementing a server process, it usually makes sense to put all of
   its code in a single module. The functions of this module generally fall
@@ -7,20 +7,22 @@ defmodule TodoServer do
   Interface functions are public and are executed in the caller process.
   They hide the details of process creation and the communication protocol.
   Implementation functions are usually private and run in the server process.
+  ## Example
+      iex(2)> {:ok, pid} = TodoServer.start_link
+      {:ok, #PID<0.65.0>}
+      iex(3)> TodoServer.add_entry(pid, %{date: {2013, 12, 19}, title: "Dentist"})
+      :ok
+      iex(4)> TodoServer.add_entry(pid, %{date: {2013, 12, 20}, title: "Shopping"})
+      :ok
+      iex(5)> TodoServer.add_entry(pid, %{date: {2013, 12, 19}, title: "Movies"})
+      :ok
+      iex(6)> TodoServer.entries(pid, {2013, 12, 19})
+      [%{date: {2013, 12, 19}, id: 3, title: "Movies"},
+      %{date: {2013, 12, 19}, id: 1, title: "Dentist"}]
+      iex(7)> TodoServer.entries(pid, {2013, 12, 20})
+      [%{date: {2013, 12, 20}, id: 2, title: "Shopping"}]
 
-  iex(2)> {:ok, pid} = TodoServer.start_link
-  {:ok, #PID<0.65.0>}
-  iex(3)> TodoServer.add_entry(pid, %{date: {2013, 12, 19}, title: "Dentist"})
-  :ok
-  iex(4)> TodoServer.add_entry(pid, %{date: {2013, 12, 20}, title: "Shopping"})
-  :ok
-  iex(5)> TodoServer.add_entry(pid, %{date: {2013, 12, 19}, title: "Movies"})
-  :ok
-  iex(6)> TodoServer.entries(pid, {2013, 12, 19})
-  [%{date: {2013, 12, 19}, id: 3, title: "Movies"},
-  %{date: {2013, 12, 19}, id: 1, title: "Dentist"}]
-  iex(7)> TodoServer.entries(pid, {2013, 12, 20})
-  [%{date: {2013, 12, 20}, id: 2, title: "Shopping"}] "
+  """
 
 
   use GenServer

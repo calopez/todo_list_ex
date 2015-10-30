@@ -29,8 +29,8 @@ defmodule Todo.Server do
   #                       Interface
   # ------------------------------------------------------------
 
-  def start_link do
-    GenServer.start_link(__MODULE__, nil)
+  def start(list_name) do
+    GenServer.start(__MODULE__, list_name)
   end
 
   def add_entry(todo_server, new_entry) do
@@ -46,21 +46,26 @@ defmodule Todo.Server do
   #         Implementation (callbacks for GenServer)
   # ------------------------------------------------------------
 
-  def init(_) do
-    {:ok, Todo.List.new}
+  def init(list_name) do
+    list = Todo.Database.get(list_name) || Todo.List.new
+    {:ok, {list_name, list} }
   end
 
-  def handle_cast({:add_entry, new_entry}, todo_list) do #(msg, state)
+  def handle_cast({:add_entry, new_entry}, _state = {name, todo_list}) do
+                #(msg, state)
 
-    todo_list = Todo.List.add_entry(todo_list, new_entry)
-    {:noreply, todo_list}
+    new_state = Todo.List.add_entry(todo_list, new_entry)
+
+    Todo.Database.store(name, new_state) # persist data
+
+    {:noreply, {name, new_state}}
 
   end
 
-  def handle_call({:entries, date},_, todo_list) do #(msg, {from, ref}, state)
+  def handle_call({:entries, date},_, _state = {_name, todo_list}) do
+                #(msg, {from, ref}, state)
     list = Todo.List.entries(todo_list, date)
     {:reply, list, todo_list}
-
   end
 
 end

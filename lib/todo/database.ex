@@ -36,13 +36,23 @@ defmodule Todo.Database do
     {:noreply, db_folder}
   end
 
-  def handle_call({:get, key}, _, db_folder) do
-    {_, response}= File.read(file_name(db_folder, key)) 
-    data = case response do
-             {:ok, contents} -> :erlang.binary_to_term(contents)
-                           _ -> nil
-           end
-    {:reply, data, db_folder}
+  def handle_call({:get, key}, caller, db_folder) do
+    # The handler function spawns the new worker process and immediately
+    # returns. While the worker is running, the database process can accept
+    # new requests.
+    # For synchronous this approach is slightly more complicated because
+    # you have to return the response from the spawned worker process:
+
+    spawn(fn ->
+      data = case File.read(file_name(db_folder, key)) do
+               {:ok, contents} -> :erlang.binary_to_term(contents)
+                              _ > nil
+      end
+      # Responds from the spawned process
+      GenServer.reply(caller, data)
+    )
+    {:noreply, db_folder}
+
   end
 
   defp file_name(db_folder, key), do: "#{db_folder}/#{key}"

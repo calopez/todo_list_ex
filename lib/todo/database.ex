@@ -12,11 +12,17 @@ defmodule Todo.Database do
   end
 
   def store(key, data) do
-    GenServer.cast(:database_server, {:store, key, data})
+    db_worker = get_worker(key)
+    Todo.DatabaseWorker.store(db_worker, key, data)
   end
 
   def get(key) do
-    GenServer.call(:database_server, {:get, key})
+    db_worker = get_worker(key)
+    Todo.DatabaseWorker.get(db_worker,  key)
+  end
+
+  defp get_worker(key) do
+    GenServer.call(:database_server, {:get_worker, key})
   end
 
   # ------------------------------------------------------------
@@ -24,37 +30,21 @@ defmodule Todo.Database do
   # ------------------------------------------------------------
 
   def init(db_folder) do
+
     file = File.mkdir_p(db_folder) # Makes sure the folder exist
-    {:ok, db_folder}
-  end
 
-  def handle_cast({:store, key, data}, db_folder) do
-
-    file_name(db_folder, key)
-    |> File.write!(:erlang.term_to_binary(data))
-
-    {:noreply, db_folder}
-  end
-
-  def handle_call({:get, key}, caller, db_folder) do
-    # The handler function spawns the new worker process and immediately
-    # returns. While the worker is running, the database process can accept
-    # new requests.
-    # For synchronous this approach is slightly more complicated because
-    # you have to return the response from the spawned worker process:
-
-    spawn(fn ->
-      data = case File.read(file_name(db_folder, key)) do
-               {:ok, contents} -> :erlang.binary_to_term(contents)
-                              _ > nil
+    w = Enum.reduce(0..2, %{},
+      fn(key, workers) ->
+        pid = Todo.DatabaseWorker.start(db_folder)
+        Map.put(workers, key, pid)
       end
-      # Responds from the spawned process
-      GenServer.reply(caller, data)
     )
-    {:noreply, db_folder}
-
+    {:ok, {db_folder, w}}
   end
 
-  defp file_name(db_folder, key), do: "#{db_folder}/#{key}"
+  def handle_call({:get_worker, key}, _, state = {_ , workers}) do
+    {:ok, worker} = Map.get(workers, :erlang.phash2(key, 3) , nil)
+    {:reply, worker, state}
+  end
 
 end
